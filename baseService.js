@@ -38,6 +38,17 @@ class BaseService {
       })
     })
   }
+
+  remove(doc) {
+    return new Promise((resolve, reject) => {
+      this.service.remove(doc, (err, newDoc) => {
+        if (err) {
+          reject(err);
+        }
+        resolve(newDoc);
+      })
+    })
+  }
 };
 
 module.exports = BaseService;

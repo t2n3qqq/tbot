@@ -31,12 +31,12 @@ const broadcastApartment = async apartment => {
     const messageToSend = constructMessage(apartment);
     await bot.sendMessage(chat.id, messageToSend.message);
     await bot.sendPhoto(chat.id, messageToSend.photo);
-    await bot.sendLocation(chat.id, messageToSend.location.latitude, messageToSend.location.longitude);
+    // await bot.sendLocation(chat.id, messageToSend.location.latitude, messageToSend.location.longitude);
   });
 }
 
 const constructMessage = apartment => ({
-  message: `${apartment.location.user_address}\n$$$: ${apartment.price.amount}\nLink: ${apartment.url}`,
+  message: `====================\n${apartment.location.user_address}\n$$$: ${apartment.price.amount}\nLink: ${apartment.url}`,
   location: {
     latitude: apartment.location.latitude,
     longitude: apartment.location.longitude,
@@ -44,23 +44,24 @@ const constructMessage = apartment => ({
   photo: apartment.photo,
 });
 
-bot.onText(/echo (.+)/, async (msg, match) => {
-  const fromId = msg.from.id;
-  const resp = match[1];
-  bot.sendMessage(fromId, resp);
-});
+const sendAllApartments = async chatId => {
+  const allApartments = await apartmentService.find();
+  const resp = _.reduce(allApartments, (acc, next) => `${constructMessage(next).message}\n\n${acc}`, '');
+  bot.sendMessage(chatId, resp);
+}
+
+// bot.onText(/echo (.+)/, async (msg, match) => {
+//   const fromId = msg.from.id;
+//   const resp = match[1];
+//   bot.sendMessage(fromId, resp);
+// });
 
 bot.onText(/\/test/, async (msg, match) => {
   const fromId = msg.from.id;
   bot.sendMessage(fromId, 'I\'m okay!');
 });
 
-bot.onText(/\/all/, async (msg, match) => {
-  const fromId = msg.from.id;
-  const allApartments = await apartmentService.find();
-  const resp = _.reduce(allApartments, (acc, next) => `${constructMessage(next).message}\n\n${acc}`, '');
-  bot.sendMessage(fromId, resp);
-});
+bot.onText(/\/all/, msg => sendAllApartments(msg.chat.id));
 
 bot.on('message', async msg => {
   const { chat } = msg;
@@ -69,6 +70,7 @@ bot.on('message', async msg => {
 
   if (!isChatExist) {
     await chatService.insert(chat);
+    sendAllApartments(chat.id);
   }
 });
 
