@@ -17,9 +17,14 @@ const checkForNewApartments = async () => {
   if (newApartments.length > 0) {
     await apartmentService.insert(newApartments);
     const outdatedApartments = _.differenceBy(prevApartments, updatedApartments, 'id');
-    _.each(outdatedApartments, apartment => apartmentService.remove({
-      id: apartment.id,
-    }))
+    try {
+      _.each(outdatedApartments, apartment => apartmentService.remove({
+        id: apartment.id,
+      }))
+    } catch (err) {
+      console.log('ERROR', err);
+    }
+
     return newApartments;
   }
   return null;
@@ -35,14 +40,19 @@ const broadcastApartment = async apartment => {
   });
 }
 
-const constructMessage = apartment => ({
-  message: `====================\n${apartment.location.user_address}\n$$$: ${apartment.price.amount}\nLink: ${apartment.url}`,
-  location: {
-    latitude: apartment.location.latitude,
-    longitude: apartment.location.longitude,
-  },
-  photo: apartment.photo,
-});
+const constructMessage = apartment => {
+  const price = _.get(apartment, 'price.converted.USD', apartment.price);
+  const address = _.get(apartment, 'location.user_address', 'N/A');
+
+  return {
+    message: `====================\n${address}\n$$$(${price.currency}): ${price.amount}\nLink: ${apartment.url}`,
+    // location: {
+    //   latitude: apartment.location.latitude,
+    //   longitude: apartment.location.longitude,
+    // },
+    photo: apartment.photo,
+  };
+};
 
 const sendAllApartments = async chatId => {
   const allApartments = await apartmentService.find();
@@ -67,7 +77,7 @@ bot.on('message', async msg => {
   const { chat } = msg;
 
   const isChatExist = await chatService.findOne({ id: chat.id });
-
+  console.log('YI', isChatExist);
   if (!isChatExist) {
     await chatService.insert(chat);
     sendAllApartments(chat.id);
