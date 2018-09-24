@@ -1,6 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const _ = require('lodash');
 const Promise = require('./lib/Promise');
+const CronJob = require('cron').CronJob;
 
 const chatService = require('./chatService');
 const apartmentService = require('./apartmentService');
@@ -13,7 +14,6 @@ const checkForNewApartments = async () => {
   const prevApartments = await apartmentService.find();
   const updatedApartments = await apartments.getApartments();
   const newApartments = _.differenceBy(updatedApartments, prevApartments, 'id');
-  console.log('NEW APPARTMENTS', newApartments);
   if (newApartments.length > 0) {
     await apartmentService.insert(newApartments);
     const outdatedApartments = _.differenceBy(prevApartments, updatedApartments, 'id');
@@ -36,7 +36,7 @@ const broadcastApartment = async apartment => {
 }
 
 const constructMessage = apartment => ({
-  message: `Hey! Check it OUT!!!\n${apartment.location.user_address}\n$$$: ${apartment.price.amount}\nLink: ${apartment.url}`,
+  message: `${apartment.location.user_address}\n$$$: ${apartment.price.amount}\nLink: ${apartment.url}`,
   location: {
     latitude: apartment.location.latitude,
     longitude: apartment.location.longitude,
@@ -72,9 +72,13 @@ bot.on('message', async msg => {
   }
 });
 
-setInterval(async () => {
+const job = new CronJob('0 */5 * * * *', async () => {
   const newApartments = await checkForNewApartments();
+  console.log('UPD', new Date());
+  console.log('NEW APPARTMENTS', newApartments);
   if (newApartments) {
     await Promise.each(newApartments, apartment => broadcastApartment(apartment))
   }
-}, 10 * 60 * 1000);
+});
+job.start();
+
